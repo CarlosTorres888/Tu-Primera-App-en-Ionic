@@ -16,19 +16,22 @@
 </template>
 
 <script setup lang="ts">
-import { camera, trash, close } from 'ionicons/icons';
 import {
-  IonPage,
-  IonHeader,
+  IonContent,
+  IonCol,
   IonFab,
   IonFabButton,
-  IonIcon,
-  IonToolbar,
-  IonTitle,
-  IonContent,
   IonGrid,
-  IonRow,
-  IonCol,
+  IonPage,
+  IonHeader,
+  IonIcon,
   IonImg,
+  IonRow,
+  IonTitle,
+  IonToolbar,
 } from '@ionic/vue';
+import { camera, trash, close } from 'ionicons/icons';
+import { usePhotoGallery } from '@/composables/usePhotoGallery';
+
+const { takePhoto } = usePhotoGallery();
 </script>
