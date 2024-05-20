@@ -2,6 +2,8 @@ import { ref, onMounted, watch } from 'vue';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
+import { isPlatform } from '@ionic/vue';
+import { Capacitor } from '@capacitor/core';
 
 const photos = ref<UserPhoto[]>([]);
 const PHOTO_STORAGE = 'photos';
@@ -41,23 +43,40 @@ photos.value = [savedFileImage, ...photos.value];
     });
 
     const savePicture = async (photo: Photo, fileName: string): Promise<UserPhoto> => {
-        // Fetch the photo, read as a blob, then convert to base64 format
-        const response = await fetch(photo.webPath!);
-        const blob = await response.blob();
-        const base64Data = (await convertBlobToBase64(blob)) as string;
-      
+        let base64Data: string | Blob;
+        // El híbrido detectará dispositivos móviles: iOS o Android.
+        if (isPlatform('hybrid')) {
+          const file = await Filesystem.readFile({
+            path: photo.path!,
+          });
+          base64Data = file.data;
+        } else {
+          // Se obtiene la foto, se leé como un blob y luego se conviérte al formato base64
+          const response = await fetch(photo.webPath!);
+          const blob = await response.blob();
+          base64Data = (await convertBlobToBase64(blob)) as string;
+        }
         const savedFile = await Filesystem.writeFile({
           path: fileName,
           data: base64Data,
           directory: Directory.Data,
         });
       
-        // Use webPath to display the new image instead of base64 since it's
-        // already loaded into memory
-        return {
-          filepath: fileName,
-          webviewPath: photo.webPath,
-        };
+        if (isPlatform('hybrid')) {
+          // Se muestra la nueva imagen reescribiendo la ruta 'file://' a HTTP
+          // Details: https://ionicframework.com/docs/building/webview#file-protocol
+          return {
+            filepath: savedFile.uri,
+            webviewPath: Capacitor.convertFileSrc(savedFile.uri),
+          };
+        } else {
+          // Se tiliza webPath para mostrar la nueva imagen en lugar de base64 
+          // ya que ya está cargada en la memoria
+          return {
+            filepath: fileName,
+            webviewPath: photo.webPath,
+          };
+        }
       };
 
     //   Función cachePhotos que guarda el array de Photos como JSON
@@ -78,12 +97,16 @@ photos.value = [savedFileImage, ...photos.value];
         const photoList = await Preferences.get({ key: PHOTO_STORAGE });
         const photosInPreferences = photoList.value ? JSON.parse(photoList.value) : [];
       
-        for (const photo of photosInPreferences) {
-          const file = await Filesystem.readFile({
-            path: photo.filepath,
-            directory: Directory.Data,
-          });
-          photo.webviewPath = `data:image/jpeg;base64,${file.data}`;
+        // Si esta ejecutando en la web...
+        if (!isPlatform('hybrid')) {
+          for (const photo of photosInPreferences) {
+            const file = await Filesystem.readFile({
+              path: photo.filepath,
+              directory: Directory.Data,
+            });
+            // Plataforma web solo: Carga las fotos como un dato base64 
+            photo.webviewPath = `data:image/jpeg;base64,${file.data}`;
+          }
         }
       
         photos.value = photosInPreferences;
