@@ -23,9 +23,10 @@ photos.value = [savedFileImage, ...photos.value];
     };
   
     return {
-        photos,
-        takePhoto,
-      };
+      photos,
+      takePhoto,
+      deletePhoto,
+    };
   };
   export interface UserPhoto {
     filepath: string;
@@ -81,14 +82,14 @@ photos.value = [savedFileImage, ...photos.value];
 
     //   Función cachePhotos que guarda el array de Photos como JSON
     
-      const cachePhotos = () => {
-        Preferences.set({
-          key: PHOTO_STORAGE,
-          value: JSON.stringify(photos.value),
-          
-        });
-      };
-      watch(photos, cachePhotos);
+    const cachePhotos = () => {
+      Preferences.set({
+        key: PHOTO_STORAGE,
+        value: JSON.stringify(photos.value),
+      });
+    };
+    
+    watch(photos, cachePhotos);
 
     //   función para recuperar los datos cuando se cargue la pestaña 2.
     // recupera los datos de las fotos de las Preferencias
@@ -114,3 +115,16 @@ photos.value = [savedFileImage, ...photos.value];
     //   Dentro de la función usePhotoGallery
     //   se agrega la función onMounted y llama a loadSaved.
       onMounted(loadSaved);
+
+
+      const deletePhoto = async (photo: UserPhoto) => {
+        // Eliminar esta foto del arreglo de datos de referencia de Fotos
+        photos.value = photos.value.filter((p) => p.filepath !== photo.filepath);
+      
+        // Se elimina foto del sistema de archivos
+        const filename = photo.filepath.substr(photo.filepath.lastIndexOf('/') + 1);
+        await Filesystem.deleteFile({
+          path: filename,
+          directory: Directory.Data,
+        });
+      };
